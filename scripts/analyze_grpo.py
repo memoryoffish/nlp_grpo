@@ -49,6 +49,9 @@ def main():
                     help="path:label (label optional)")
     ap.add_argument("--out_csv", default="results/grpo_curves.csv")
     ap.add_argument("--out_png", default="results/grpo_curves.png")
+    ap.add_argument("--title", default="", help="figure suptitle (what config this compares)")
+    ap.add_argument("--panels", default="critic/score/mean,val/test_score/game24,response_length/mean,actor/kl_loss",
+                    help="comma-separated metric keys for the 4 panels")
     args = ap.parse_args()
 
     series = {}
@@ -74,9 +77,8 @@ def main():
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
-        panels = ["critic/score/mean", "val/test_score/game24",
-                  "response_length/mean", "actor/kl_loss"]
-        fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+        panels = [p.strip() for p in args.panels.split(",")][:4]
+        fig, axes = plt.subplots(2, 2, figsize=(13, 8.5))
         for ax, key in zip(axes.flat, panels):
             for label, rows in series.items():
                 xs = [s for s in sorted(rows) if key in rows[s]]
@@ -86,8 +88,10 @@ def main():
             ax.set_title(key)
             ax.set_xlabel("step")
             ax.grid(alpha=0.3)
-            ax.legend()
-        fig.tight_layout()
+            ax.legend(fontsize=8)
+        if args.title:
+            fig.suptitle(args.title, fontsize=13, fontweight="bold")
+        fig.tight_layout(rect=[0, 0, 1, 0.96] if args.title else None)
         fig.savefig(args.out_png, dpi=120)
         print(f"wrote {args.out_png}")
     except Exception as e:
