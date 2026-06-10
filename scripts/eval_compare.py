@@ -203,22 +203,28 @@ def main():
     with open(args.out_json, "w") as f:
         json.dump(table, f, indent=2)
 
-    # markdown table: greedy + verifier best-of-N frontier on the hard test
+    # markdown table: greedy + verifier best-of-N frontier on the hard test.
+    # Frontier columns are DYNAMIC: only the k actually computed (k <= bon), deduped —
+    # avoids duplicate/zero columns when bon is small.
+    ks = [k for k in (1, 2, 4, 8, 16, 32, 64) if k <= args.bon]
     bv = lambda r, k: r['test'].get(f'best_verified@{k}', 0)
+    pct = lambda x: "-" if (x != x) else f"{x:.0%}"   # "-" for NaN (skipped dataset)
+    g = lambda r, k: r.get(k, {}).get('greedy_acc', float('nan'))
+    bv_hdr = " | ".join(f"bv@{k}" for k in ks)
+    bv_sep = "|".join(["---"] * len(ks))
     lines = [
         "Metric defs: greedy = 1-shot deterministic; best_verified@k = sample k, output the "
         "verifier-confirmed-correct one (deployable, exact verifier); maj@k = majority-vote answer.",
         "",
-        f"| Model | train(in-dist) greedy | hard-test greedy | bv@1 | bv@4 | bv@8 | bv@{args.bon} | maj@{args.bon} | halluc↓ | Countdown OOD |",
-        "|---|---|---|---|---|---|---|---|---|---|",
+        f"| Model | train(in-dist) greedy | hard-test greedy | {bv_hdr} | maj@{args.bon} | halluc↓ | Countdown OOD |",
+        f"|---|---|---|{bv_sep}|---|---|---|",
     ]
-    g = lambda r, k: r.get(k, {}).get('greedy_acc', float('nan'))
     for label, r in table.items():
+        bv_cells = " | ".join(pct(bv(r, k)) for k in ks)
         lines.append(
-            f"| {label} | {g(r,'train_indist'):.0%} | {r['test']['greedy_acc']:.0%} | "
-            f"{bv(r,1):.0%} | {bv(r,4):.0%} | {bv(r,8):.0%} | {bv(r,args.bon):.0%} | "
-            f"{r['test'].get(f'maj@{args.bon}',0):.0%} | {g(r,'hallucination'):.0%} | "
-            f"{g(r,'countdown_ood'):.1%} |"
+            f"| {label} | {pct(g(r,'train_indist'))} | {pct(r['test']['greedy_acc'])} | "
+            f"{bv_cells} | {pct(r['test'].get(f'maj@{args.bon}',0))} | "
+            f"{pct(g(r,'hallucination'))} | {pct(g(r,'countdown_ood'))} |"
         )
     md = "\n".join(lines)
     with open(args.out_md, "w") as f:
