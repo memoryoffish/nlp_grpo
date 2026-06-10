@@ -17,7 +17,7 @@ Note that we don't combine the main with ray_trainer as ray_trainer is used by o
 
 from verl import DataProto
 import torch
-from verl.utils.reward_score import gsm8k, math, multiply, countdown
+from verl.utils.reward_score import gsm8k, math, multiply, countdown, game24
 from verl.trainer.ppo.ray_trainer import RayPPOTrainer
 
 
@@ -30,6 +30,8 @@ def _select_rm_score_fn(data_source):
         return multiply.compute_score
     elif "countdown" in data_source:
         return countdown.compute_score
+    elif "game24" in data_source or "24-game" in data_source:
+        return game24.compute_score
     else:
         raise NotImplementedError
 
@@ -98,7 +100,18 @@ import hydra
 def main(config):
     if not ray.is_initialized():
         # this is for local ray cluster
-        ray.init(runtime_env={'env_vars': {'TOKENIZERS_PARALLELISM': 'true', 'NCCL_DEBUG': 'WARN'}})
+        import os as _os
+        _env_vars = {'TOKENIZERS_PARALLELISM': 'true', 'NCCL_DEBUG': 'WARN'}
+        # Propagate flags that must be visible to Ray workers at import time. In particular
+        # VERL_DISABLE_FLASH_ATTN_CE gates the flash-attn cross-entropy kernel in
+        # verl.utils.torch_functional; workers on a pre-started Ray head do not inherit the
+        # launcher's env, and without this they crash with
+        # "Triton Error [CUDA]: device kernel image is invalid".
+        for _k in ('VERL_DISABLE_FLASH_ATTN_CE', 'HF_ENDPOINT', 'HF_HOME',
+                   'GAME24_REWARD', 'GAME24_SHAPING_COEF'):
+            if _os.environ.get(_k) is not None:
+                _env_vars[_k] = _os.environ[_k]
+        ray.init(runtime_env={'env_vars': _env_vars})
 
     ray.get(main_task.remote(config))
 

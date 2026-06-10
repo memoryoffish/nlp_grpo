@@ -1,0 +1,44 @@
+{
+  "base": {
+    "test": {
+      "n": 100,
+      "mean_score": 0.091,
+      "greedy_acc": 0.0,
+      "n_correct": 0,
+      "pass@4": 0.01
+    },
+    "hallucination": {
+      "n": 100,
+      "mean_score": 0.088,
+      "greedy_acc": 0.0,
+      "n_correct": 0
+    },
+    "countdown_ood": {
+      "n": 256,
+      "mean_score": 0.0664,
+      "greedy_acc": 0.0195,
+      "n_correct": 5
+    }
+  },
+  "SFT-only": {
+    "test": {
+      "n": 100,
+      "mean_score": 0.109,
+      "greedy_acc": 0.01,
+      "n_correct": 1,
+      "pass@4": 0.01
+    },
+    "hallucination": {
+      "n": 100,
+      "mean_score": 0.1,
+      "greedy_acc": 0.0,
+      "n_correct": 0
+    },
+    "countdown_ood": {
+      "n": 256,
+      "mean_score": 0.1453,
+      "greedy_acc": 0.0508,
+      "n_correct": 13
+    }
+  }
+}

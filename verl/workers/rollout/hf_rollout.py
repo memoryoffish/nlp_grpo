@@ -65,6 +65,11 @@ class HFRollout(BaseRollout):
 
         # make sampling args can be overriden by inputs
         do_sample = prompts.meta_info.get('do_sample', self.config.do_sample)
+        # GRPO needs `n` samples per prompt to form a group for relative-advantage
+        # estimation. HF generate produces these via num_return_sequences, but only when
+        # sampling (greedy decoding cannot return multiple distinct sequences). Validation
+        # passes do_sample=False, so it stays at n=1.
+        num_return_sequences = int(self.config.get('n', 1)) if do_sample else 1
         response_length = prompts.meta_info.get('response_length', self.config.response_length)
         top_p = prompts.meta_info.get('top_p', self.config.get('top_p', 1.0))
         top_k = prompts.meta_info.get('top_k', self.config.get('top_k', 0))
@@ -88,6 +93,7 @@ class HFRollout(BaseRollout):
                     do_sample=do_sample,
                     max_new_tokens=response_length,
                     # max_length=max_length,
+                    num_return_sequences=num_return_sequences,
                     eos_token_id=eos_token_id,
                     pad_token_id=pad_token_id,
                     generation_config=generation_config,
@@ -97,6 +103,15 @@ class HFRollout(BaseRollout):
                     use_cache=True)
         # TODO: filter out the seq with no answers like ds-chat
         seq = output.sequences
+
+        # When num_return_sequences > 1, generate returns (bs * n) rows ordered as
+        # [p0_s0, p0_s1, ..., p0_s{n-1}, p1_s0, ...]. Expand the per-prompt tensors with
+        # repeat_interleave so they line up row-for-row with the generated sequences, and
+        # update batch_size for all downstream tensor construction.
+        if num_return_sequences > 1:
+            attention_mask = attention_mask.repeat_interleave(num_return_sequences, dim=0)
+            position_ids = position_ids.repeat_interleave(num_return_sequences, dim=0)
+            batch_size = seq.size(0)
 
         # huggingface generate will stop generating when all the batch reaches [EOS].
         # We have to pad to response_length

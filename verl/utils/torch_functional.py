@@ -24,9 +24,16 @@ import torch.nn.functional as F
 from tensordict import TensorDict
 from torch import nn
 
+def _flash_attn_ce_disabled() -> bool:
+    return os.environ.get('VERL_DISABLE_FLASH_ATTN_CE', '').lower() in ('1', 'true', 'yes', 'on')
+
+
 try:
     from flash_attn.ops.triton.cross_entropy import cross_entropy_loss
-    FLAH_ATTN_CROSS_ENTROPY_LOSS_AVAILABLE = True
+    # Some flash-attn / triton / CUDA combos (e.g. flash-attn built against a different
+    # CUDA than the active torch) crash inside this triton kernel. Set
+    # VERL_DISABLE_FLASH_ATTN_CE=1 to fall back to the naive log_softmax path.
+    FLAH_ATTN_CROSS_ENTROPY_LOSS_AVAILABLE = not _flash_attn_ce_disabled()
 except ImportError:
     FLAH_ATTN_CROSS_ENTROPY_LOSS_AVAILABLE = False
 

@@ -1,0 +1,21 @@
+{
+  "shaped": {
+    "test": {
+      "n": 100,
+      "mean_score": 0.108,
+      "greedy_acc": 0.01,
+      "n_correct": 1,
+      "best_verified@1": 0.0,
+      "best_verified@2": 0.0,
+      "best_verified@4": 0.01,
+      "best_verified@8": 0.04,
+      "maj@8": 0.0
+    },
+    "train_indist": {
+      "n": 100,
+      "mean_score": 0.324,
+      "greedy_acc": 0.25,
+      "n_correct": 25
+    }
+  }
+}
