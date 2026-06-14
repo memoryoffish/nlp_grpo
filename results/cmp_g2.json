@@ -1,0 +1,98 @@
+{
+  "C-multi-n4-lr1e6": {
+    "test": {
+      "n": 100,
+      "mean_score": 0.181,
+      "greedy_acc": 0.09,
+      "n_correct": 9,
+      "best_verified@1": 0.13,
+      "best_verified@2": 0.16,
+      "best_verified@4": 0.21,
+      "best_verified@8": 0.32,
+      "best_verified@16": 0.45,
+      "maj@16": 0.12
+    },
+    "train_indist": {
+      "n": 100,
+      "mean_score": 0.271,
+      "greedy_acc": 0.19,
+      "n_correct": 19
+    },
+    "hallucination": {
+      "n": 100,
+      "mean_score": 0.1,
+      "greedy_acc": 0.0,
+      "n_correct": 0
+    },
+    "countdown_ood": {
+      "n": 256,
+      "mean_score": 0.1313,
+      "greedy_acc": 0.0352,
+      "n_correct": 9
+    }
+  },
+  "A1-n8": {
+    "test": {
+      "n": 100,
+      "mean_score": 0.217,
+      "greedy_acc": 0.13,
+      "n_correct": 13,
+      "best_verified@1": 0.14,
+      "best_verified@2": 0.18,
+      "best_verified@4": 0.2,
+      "best_verified@8": 0.25,
+      "best_verified@16": 0.31,
+      "maj@16": 0.1
+    },
+    "train_indist": {
+      "n": 100,
+      "mean_score": 0.271,
+      "greedy_acc": 0.19,
+      "n_correct": 19
+    },
+    "hallucination": {
+      "n": 100,
+      "mean_score": 0.1,
+      "greedy_acc": 0.0,
+      "n_correct": 0
+    },
+    "countdown_ood": {
+      "n": 256,
+      "mean_score": 0.1352,
+      "greedy_acc": 0.0391,
+      "n_correct": 10
+    }
+  },
+  "A2-single": {
+    "test": {
+      "n": 100,
+      "mean_score": 0.208,
+      "greedy_acc": 0.12,
+      "n_correct": 12,
+      "best_verified@1": 0.17,
+      "best_verified@2": 0.19,
+      "best_verified@4": 0.27,
+      "best_verified@8": 0.32,
+      "best_verified@16": 0.39,
+      "maj@16": 0.16
+    },
+    "train_indist": {
+      "n": 100,
+      "mean_score": 0.262,
+      "greedy_acc": 0.18,
+      "n_correct": 18
+    },
+    "hallucination": {
+      "n": 100,
+      "mean_score": 0.1,
+      "greedy_acc": 0.0,
+      "n_correct": 0
+    },
+    "countdown_ood": {
+      "n": 256,
+      "mean_score": 0.1316,
+      "greedy_acc": 0.0352,
+      "n_correct": 9
+    }
+  }
+}

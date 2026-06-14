@@ -4,274 +4,234 @@
 > 任务：给定 4 个整数，输出仅用 `+ - * / ()` 且每个数恰好用一次、结果等于 24 的算式；
 > R1 风格 `<think>…</think><answer>…</answer>` 输出；奖励由程序判定（RLVR，无人工标注）。
 
+> ⚠️ **更正声明 —— §9 是唯一权威结果，§1–8 仅作过程记录，请勿引用其任何数字。**
+>
+> 第 1–8 节早期使用了**不合规且泄漏**的划分：测试用 `test-time-compute/game-of-24` 的 **Rank 1263–1362**
+> （我们自定义的"绝对最难 100 题"，solved_rate 20–58%），训练用 Rank 1–1262；经复查，**作业指定的 ToT 标准
+> 测试集（idx 900–999）有 100/100 题落在该训练集内（完全泄漏）**，故 §1–8 的全部绝对数字与"OOD 5.5×"等
+> 结论**均不可信、予以作废**。
+>
+> 我们随后**按作业要求重建合规数据并重训全部模型**（§9）：**训练 = `nlile/24-game`（solvable=True，共 1262，
+> 当前版本无 solvable=False）减去测试题 = 1262 题；测试 = `test-time-compute/game-of-24` idx 900–999
+> （ToT 论文标准 100 难题）**，机械断言 `train ∩ test = ∅`。
+>
+> **§1–8 与 §9 的关系（诚实交代）**：在合规数据上，§1–8 的两条相对结论**部分成立、一条被推翻**：
+> ✅ 成立：**「SFT 是必需，纯 GRPO ≈ base」**（§9.3 R1 纯GRPO 13% ≈ base）；✅ 成立：**「GRPO 抬高单发 greedy 但
+> 收窄采样多样性 / best-of-N 上界」**（§9.3、§9.5）。❌ **被推翻**：§1–8 主打的**「GRPO 在 SFT 之上带来巨大且
+> 可迁移的 OOD 增益（5.5×）」在合规数据上不复存在**——§9.3 中 GRPO 各臂的 in-dist/OOD 多数**不高于甚至低于
+> SFT-only**。即**本任务上 GRPO 的净贡献远小于 §1–8 的声称**。建议评阅者**只看 §9**。
+
 本报告的核心是一个**受控对比**：在完全相同的数据 / 奖励 / 提示 / 超参 / 随机性下，
 唯一区别是初始权重 —— **Arm A 从基座模型直接 GRPO（纯 GRPO）**，
 **Arm B 先 SFT 冷启动再 GRPO（SFT→GRPO）**，从而把性能差异**归因于 SFT 冷启动**本身。
 
 ---
 
-## 1. 动机：纯 GRPO 的"零梯度组"问题
-
-GRPO 用同一道题的 `n` 个采样输出组成一个 group，用组内相对奖励做优势估计。
-若一道题的 `n` 个输出**全部**得到相同奖励（例如全 0），该 group 的优势恒为 0，**不产生梯度**。
-
-基座模型在难题集上几乎不会输出合法格式 / 正确算式，于是绝大多数 group 全 0 → 训练信号极稀疏。
-本实验**实测**证实了这一点：
-
-- 基座模型在难测试集（最难 100 题）上的初始验证分 **val/test_score = 0.061**
-  （奖励 1.0/0.1/0.0；0.061 意味着大部分输出连合法 `<answer>` 都没有，只有零星 0.1）。
-
-SFT 冷启动的作用：先用**带搜索过程的推理轨迹**教会模型"如何尝试-验证-给出答案"，
-使其**稳定输出 R1 格式**且**经常能采样到正确解**，从而让后续 GRPO 的 group 内出现非零奖励差异、
-产生有效梯度。
-
+> 🗂️ **早期过程记录（原 §1–§8，不合规且含数据泄漏，数字已作废）已移至附录文件**
+> [`REPORT_附录_早期过程记录.md`](REPORT_附录_早期过程记录.md)，仅供查看研究演进与监控/调参过程。
+> **本正文只保留权威的合规结果 §9。** 下文提到的「§1–8」「早期版本」均指该附录。
 ---
 
-## 2. 方法
+# 9. 合规重做：作业指定数据划分下的完整消融与最终结果（权威）
 
-### 2.1 SFT 冷启动数据（Arm B 第一阶段）
-对每道训练题用**精确求解器**（`solve24`，分数运算枚举所有解）找出全部正确算式，
-再程序化生成一段 **Tree-of-Thought 风格**的推理轨迹：先给出 2 个"尝试-失败"的组合，
-再给出正确解。示例：
+§1–8 的测试划分不合规且对 ToT 标准集完全泄漏（见顶部更正声明）。本节按**作业指定划分**重建数据、
+重训全部模型，并完成用户要求的**五轴消融**与 **Tree-of-Thoughts 模型自评（self-critic）**研究。
+**本节为最终权威结果。所有"X%"均为准确率（`score==1.0`，即恰好用满 4 数且 =24），不是平均奖励。**
 
+![效果总览](results/figs/fig_overview.png)
+*图 0：四面板总览——① 四种 critic 自评、② 价值阶梯、③ 验证器精确率翻转、④ 5 轴 GRPO 消融（合规 ToT 测试集，k=16）。*
+
+## 9.0 算法、公式与伪代码（评分点③）
+
+**(a) GRPO 目标（DeepSeekMath, 2402.03300）。** 对每个问题 $q$ 采样一组 $G$ 个输出 $\{o_1,\dots,o_G\}\sim\pi_{\theta_{old}}$，
+用**组内相对奖励**做优势估计（无需价值网络）：
+
+$$\hat A_i=\frac{r_i-\mathrm{mean}(\{r_1,\dots,r_G\})}{\mathrm{std}(\{r_1,\dots,r_G\})}$$
+
+$$\mathcal L_{GRPO}(\theta)=-\mathbb E\Big[\frac1G\sum_{i=1}^{G}\min\big(\rho_i\hat A_i,\ \mathrm{clip}(\rho_i,1-\epsilon,1+\epsilon)\hat A_i\big)-\beta\,\mathbb D_{KL}(\pi_\theta\Vert\pi_{ref})\Big],\quad \rho_i=\frac{\pi_\theta(o_i|q)}{\pi_{\theta_{old}}(o_i|q)}$$
+
+本实验 $G=4$（A1 用 8）、$\beta=0.001$、熵系数 0.001、$\epsilon$ 取默认。**「零梯度组」**：若一组 $G$ 个输出奖励全相等
+（例如全 0），则 $\mathrm{std}=0$、$\hat A_i\equiv 0$，该组**不产生梯度**——这正是纯 GRPO 从基座冷启动停滞的原因（§1）。
+
+**(b) 可验证奖励（RLVR）。** 设答案算式为 $e$，给定四数多重集 $N$：
+
+$$r(e)=\begin{cases}1.0 & e\ \text{合法 (恰用 }N\text{ 各一次) 且 } |\mathrm{eval}(e)-24|<10^{-6}\\ 0.1 & \text{有 }\langle answer\rangle\text{ 但数字/结果不符 (格式分)}\\ 0.0 & \text{无 }\langle answer\rangle\end{cases}$$
+
+shaped 变体（A3）：在仅"数字用对但结果错"时给 $0.1+0.5\cdot\max(0,\,1-|\mathrm{eval}(e)-24|/24)$（封顶 0.6，防 reward-hack）。
+
+**(c) 两阶段管线与自评伪代码。**
 ```
-Let me solve this step by step.
-<think>
-I need to make 24 from [4, 8, 11, 11], using each number exactly once.
-Let me try some combinations first:
-- Try 11 + 11 + 8 - 4 = 26 ≠ 24. Does not work.
-- Try 11 * 8 - 4 - 11 = 73 ≠ 24. Does not work.
-Let me think differently:
-8 / 4 + 11 + 11 = 24 ✓  Found it!
-</think>
-<answer>8 / 4 + 11 + 11</answer>
+# 阶段1 SFT 冷启动: 用精确求解器为每题构造 R1 轨迹(尝试-失败-正确解[-自检]), 监督微调
+# 阶段2 GRPO: 见 (a); rollout 用 HF backend (本机 vLLM 不可用)
+
+# 推理期三种"挑答案"协议 (k 个采样候选 e_1..e_k):
+best_verified@k:  return any e_i with r(e_i)==1.0            # 需廉价精确验证器(24点天然有)→上界
+maj@k:            return mode({e_i})                          # 多数投票, 无 critic
+selfcritic@k (ToT, 本文 verify-by-compute):                  # 模型自己当 critic, 无 oracle
+    for each e_i:
+        判定 ← 模型(裸completion few-shot, 强制"先逐步算出数值再判 CORRECT/WRONG")(N, e_i)
+    return 第一个被判 CORRECT 的 e_i   (若无则弃答/回退)
 ```
-- 规模：1199 训练 / 63 验证（每题取最简解）。轨迹完全确定式生成，无 LLM 噪声。
-- SFT：`fsdp_sft_trainer`，lr 2e-5，3 epochs，max_length 1024，train loss 收敛到 ~0.025。
 
-### 2.2 GRPO（两个 Arm 共用）
-- 算法：GRPO（`adv_estimator=grpo`），组内相对优势，`rollout.n=4`。
-- 奖励 `verl/utils/reward_score/game24.py`：
-  - **1.0**：恰好用给定 4 数、结果 = 24；
-  - **0.1**：有 `<answer>` 但数字或结果不对（格式分）；
-  - **0.0**：无 `<answer>`。
-- KL 正则 `kl_loss_coef=0.001`（low_var_kl），entropy_coeff=0.001。
-
-### 2.3 提示与 SFT/GRPO 格式对齐（关键）
-GRPO/评测使用 `qwen-instruct` 提示，结尾预填 `<|im_start|>assistant\nLet me solve this step by step.\n<think>`。
-SFT 数据的 prompt 为纯问题文本，由 `SFTDataset` 套用 chat template。
-**为保证 SFT 暖启动能干净迁移到 GRPO**，我们把 GRPO 提示的 system 改为 Qwen 默认
-（"You are Qwen, created by Alibaba Cloud. You are a helpful assistant."），
-使 `GRPO prompt == SFT 渲染 prompt + "<think>" 预填`（已逐字符校验一致，仅预填部分不同，
-而预填正是 SFT 训练模型学会续写的内容）。两个 Arm 用**完全相同**的提示。
-
----
-
-## 3. 实验设置
-
-### 3.1 数据划分（与参考实现 (3) 一致，同源按难度切分）
+## 9.1 合规数据划分
 | 划分 | 来源 | 数量 | 说明 |
 |---|---|---|---|
-| 训练 | test-time-compute/game-of-24 Rank 1–1262 | 1262 | 最易（solved_rate 99.2%–61.7%） |
-| 测试 | 同数据集 Rank 1263–1362 | 100 | 最难（solved_rate 58.0%–20.7%），衡量泛化 |
-| 幻觉集 | 从 {1..13}⁴ 合成的无解四元组 | 100 | 检测模型是否对无解题"瞎编"算式 |
-| OOD（加分） | Jiayi-Pan/Countdown-Tasks-3to4 | 256（取样） | 3–4 数凑任意目标，验证通用算术推理 |
+| 训练 | **`nlile/24-game`** 可解集 − 测试集 | **1262** | 同时用其精确求解轨迹做 SFT |
+| 测试 | **`test-time-compute/game-of-24` idx 900–999** | **100** | Tree-of-Thoughts 论文标准 100 难题（solved_rate 0.75–0.95） |
+| 幻觉集 | 合成无解四元组（`{1..13}⁴` − 可解集） | 100 | 检测对无解题是否瞎编 |
+| OOD | `Jiayi-Pan/Countdown-Tasks-3to4` | 256 | 通用算术推理迁移 |
 
-### 3.2 运行环境
-- 仅 `uv` (Python 3.11) 环境可用：torch 2.6.0+cu118、flash-attn 2.6.3、ray 2.51.2。
-- 该环境内 vLLM ABI 损坏（`undefined symbol: cuTensorMapEncodeTiled`，cu12.x vs cu118），
-  且无 conda `zero` 环境，故 rollout 后端使用 **HF rollout**（而非参考脚本的 vLLM）。
-- 为支持 HF rollout 下 GRPO 的 `n>1` 组采样，对 `hf_rollout.py` 增加 `num_return_sequences=n`
-  并相应扩展张量；另加 `VERL_DISABLE_FLASH_ATTN_CE` 开关规避 flash-attn CE 兼容问题。
+机械断言 `train ∩ test = ∅`（`examples/data_preprocess/game24_official.py`）。SFT 两版共享同 1262 训练题：
+**SFT-multi**（多解+失败尝试+自检行，2382 样本）与 **SFT-single**（单条最短解，1199 样本）——用于"多解"消融。
 
-### 3.3 受控对比配置（两个 Arm 完全一致，仅 BASE_MODEL 不同）
-`rollout.n=4`, `train_batch_size=16`, `max_response_length=256`, `lr=1e-6`,
-`temperature=1.0`, `total_training_steps=160`, `test_freq=20`, `save_freq=40`, 4×A100。
-- **Arm A（纯 GRPO）**：BASE_MODEL = Qwen2.5-1.5B-Instruct。
-- **Arm B（SFT→GRPO）**：BASE_MODEL = SFT checkpoint（`game24-sft/global_step_111`）。
+> **关于 solved_rate（澄清评审疑问）**：`test-time-compute/game-of-24` 的 `Solved rate` 是 **4nums.com 上人类/社区的
+> 解出率**。idx 900–999 这 100 题的 solved_rate = 75.2%–94.5%（均 85.9%）——**人类能解出大多数**，但它们是 ToT 论文
+> 按难度排序后选作测试的相对偏难子集。下文各模型 greedy 仅 8–13%，反映的是 **1.5B 模型 1-shot 能力弱**，并非题目易；
+> 二者口径不同，不矛盾。（§1–8 的"20–58%"是另一个更难切片 Rank 1263–1362，已作废。）
 
-### 3.4 设置正确性审计（已通过）
-为保证对比有效，训练前对设置做了对抗式审计：
-- **无数据泄漏**：训练(1262) ∩ 测试(100) = 0；幻觉集与二者均不相交。
-- **幻觉集确为无解**：用精确求解器验证 100 题**全部无解**（0/100 可解）→ 幻觉率指标有效。
-- **测试集全部可解**：100 题均有解（对模型公平）。
-- **奖励函数正确**：正确算式→1.0；数字/结果错→0.1；无 `<answer>`→0.0；裸 "24"→0.1（不被误判为正确）。
+## 9.2 五轴消融矩阵（单因子对照，从对照臂 C 每次只变一项；4×GPU，HF rollout，1 epoch，step_40）
+| 臂 | SFT 起点 | n | reward | lr | 消融轴 |
+|---|---|---|---|---|---|
+| **C 对照** | multi | 4 | sparse | 1e-6 | — |
+| A1 | multi | **8** | sparse | 1e-6 | ① rollout_n |
+| A2 | **single** | 4 | sparse | 1e-6 | ② 多解（单解 SFT） |
+| A3 | multi | 4 | **shaped** | 1e-6 | ③ reward |
+| A4a / A4b / A4c | multi | 4 | sparse | **5e-7 / 2e-6 / 5e-6** | ④ lr |
+| R1 | **base（无 SFT）** | 4 | sparse | 1e-6 | SFT 有无（参考） |
 
----
+## 9.3 生成能力结果（合规 ToT 测试集；greedy + 验证器 best-of-N + 幻觉 + OOD）
+`scripts/eval_compare.py`，`results/cmp_compliant_all.json`。bv@k = 采样 k 个、精确验证器挑正确的（带验证器可部署 / 上界）。
 
-## 4. 结果
+| 模型 | in-dist | 难测试 greedy | bv@4 | bv@8 | bv@16 | 幻觉↓ | Countdown OOD |
+|---|---|---|---|---|---|---|---|
+| base | 2% | 0% | 2% | 2% | 7% | 0% | 2% |
+| **SFT-single** | 20% | 9% | 21% | 29% | 45% | 0% | 9% |
+| **SFT-multi** | 22% | 7% | 17% | 28% | 42% | 0% | 3% |
+| **R1 纯GRPO** | 4% | 0% | 3% | 8% | 13% | 0% | 4% |
+| C(multi/n4/1e-6) | 19% | 9% | 21% | 32% | 45% | 0% | 4% |
+| A1(n8) | 19% | **13%** | 20% | 25% | 31% | 0% | 4% |
+| A2(single) | 18% | 12% | 27% | 32% | 39% | 0% | 4% |
+| A3(shaped) | 22% | 12% | 24% | 29% | 41% | 0% | **11%** |
+| **A4a(lr5e-7)** | 19% | 12% | 23% | 37% | **56%** | 0% | 4% |
+| A4b(lr2e6) | 17% | 9% | 12% | 18% | 23% | 0% | 2% |
+| A4c(lr5e6) | 9% | 11% | 15% | 17% | 18% | 0% | 8% |
 
-### 4.1 训练曲线（reward / 验证分 vs step，见 `results/grpo_curves.png`）
-两条 arm 各跑 160 步（HF rollout，4×A100，曲线数据见 `results/grpo_curves.csv`）：
+![5轴消融](results/figs/fig_ablation.png)
 
-- **训练奖励 `critic/score/mean`（核心信号）**：
-  - 纯 GRPO 全程卡在 **0.10–0.13**（≈ 仅 3–5% rollout 得到 1.0，其余只拿格式分 0.1），
-    仅在最后 ~30 步出现微弱上扬到 ~0.20。
-  - SFT→GRPO **从第 1 步起就在 0.25–0.44**（≈ 20–30% rollout 正确），全程是纯 GRPO 的 2–3 倍。
-  - 即"SFT 让 GRPO 的组内一开始就有正确样本可强化"，而纯 GRPO 长期处于零梯度组主导的停滞区。
-- **验证分 `val/test_score`（难测试集贪心）**：两条 arm 都长期在 **0.10** 附近
-  （难测试集是最难的 100 题，1.5B 贪心 1-shot 接近上限，见 4.2 与局限性）。
+**各轴结论**（已按 ±10pp 噪声谨慎表述，**只下统计上站得住的结论**）：
+- **SFT 有无（稳健）**：SFT（bv@16 42–45%）≫ 纯 GRPO R1（13%）≈ base。差距远超噪声，**SFT 是必需**。
+- **① rollout_n（稳健方向）**：n8 提贪心（13% vs 9%）但**降 best-of-N 多样性**（bv@16 31% vs 45%）——尖锐化/多样性权衡，与熵坍缩一致。
+- **② 多解（无显著差异）**：单解/多解各指标差异多在噪声内,**不宣称谁更好**(但见 §9.4:单解 SFT 训出的*验证器*显著更准)。
+- **③ reward（弱证据，倾向 shaped）**：shaped 在 in-dist(22% vs 19%)与 **OOD(11% vs 4%)** 上较优、且未诱发瞎编；
+  贪心 12% vs 9% 仅差 ~1 题、**在噪声内**，故只把 shaped 记为"OOD 上有利、其余持平"。
+- **④ lr（弱证据，倾向 5e-7/1e-6）**：5e-7/1e-6 的 best-of-N 优于 2e-6/5e-6（5e-6 把 in-dist 砸到 9% 是**稳健**的——
+  过大 lr 损害策略）；但 5e-7 vs 1e-6 之间差异在噪声内,**不宣称 5e-7 唯一最优**。
+- ⚠️ **统计口径**：hard-test n=100、1%=1 题；bv@16 含**采样随机性**，在 k=16、无固定种子下 **±~10pp** 抖动（A4a 一轮 56%/另一轮 46%），
+  因此各轴**只在差距 ≫ 噪声时下结论**，区间值（如 §9.7 的 46–52%）勿过度排序。
+  另:§9.3 与 §9.5 同模型 greedy 偶有 **1pp(=1 题)** 差异——greedy 是确定性解码、本不应抖动,差异源于**两个评测脚本
+  (`eval_compare.py` 与 `eval_selfcritic_compute.py`)实现不同(批处理+左 padding vs 单条、max_new_tokens 设置),
+  bf16 在不同 batch 组成下对个别题的解码产生 1 题级偏差**,非随机种子、非笔误。
 
-### 4.2 最终对比表（`results/comparison.md`，checkpoint = global_step_120）
-评测维度：分布内训练集采样 100 题贪心准确率、难测试集贪心 + pass@4、幻觉集"求解率"（越低越好）、
-Countdown OOD（3–4 数任意目标，256 题）贪心准确率。
+## 9.4 ⑤ Tree-of-Thoughts 模型自评（self-critic）：critic 的 prompt 设计是成败关键
+对齐 ToT（Yao et al. 2023）：**用模型自己当 critic**——采样 k 个候选，模型自评打分挑一个，**不用 oracle**。
+我们消融了 **4 种 critic prompt 设计**，并量化"模型当验证器"的精确率/召回率（`scripts/eval_selfcritic_*.py`）：
 
-| Model | 分布内(train) 贪心 | 难测试 贪心 | 难测试 pass@4 | 难测试 mean | 幻觉求解率↓ | Countdown OOD |
-|---|---|---|---|---|---|---|
-| base (Qwen2.5-1.5B-Instruct) | 0% | 0% | 0% | 0.091 | 0% | 1.95% |
-| 纯 GRPO (Arm A) | 5% | 1% | 0% | 0.109 | 0% | 2.34% |
-| SFT-only（仅冷启动） | 20% | 1% | 3% | 0.109 | 0% | 5.08% |
-| **SFT→GRPO (Arm B)** | **27%** | 1% | **5%** | 0.109 | 0% | **12.89%** |
+| critic 设计 | 机制 | selfcritic@16（SFT-multi/C/A1/A4a/A3） | 验证器精确率 |
+|---|---|---|---|
+| logit 一词 | 一次前向读 sure/likely/impossible 的 logit（ToT 原 value prompt 风格） | 6 / – / – / – / – % | ~6% |
+| 零样本 CoT | 让其推理后 CORRECT/WRONG（无反例示例） | 6 / 13 / 11 / 15 / 16 % | 6–13% |
+| ToT few-shot | **忠实复现** ToT `value_last_step_prompt`（few-shot 含 impossible 反例） | 7 / 11 / 11 / 7 / 16 % | 7–13% |
+| **verify-by-compute（本文）** | **裸 completion + few-shot 反例 + 强制先逐步算出数值再判** | **31 / 25 / 24 / 29 / 22 %** | **45–66%** |
 
-### 4.3 定性样例（`results/qualitative_samples.md`）
-训练中 reward 函数打印的 rollout 样例清楚显示两种 arm 的行为差异：
+![四种critic自评](results/figs/fig_critic_prompt.png)
+![验证器精确率翻转](results/figs/fig_verifier_flip.png)
 
-- **纯 GRPO（base 初始化）**：常常**照抄 prompt 里的少样本示例** `(1 + 2) * 8`，无视题目给的数字，
-  例如题目 `[5,7,11,13]` 却输出 `(1 + 2) * 8 = 3 * 8 = 24`（数字错→0.1），几乎不真正求解。
-- **SFT→GRPO**：使用**正确的数字**做真实尝试并经常正确，如
-  `[2,2,7,13]→13 + 7 + 2 + 2`✓、`[4,4,4,8]→8 * 4 - 4 - 4`✓。
+**核心发现**：
+- 前 3 种 critic 全是"**老好人**"：对 `(4−5+10)*6=54`、`(1+2+7)*4=40` 这种**离 24 极远**的式子也照打 sure；
+  验证器精确率≈题目本身正确率（6–13%），混淆矩阵中正确拒绝（TN）只有几十、误判（FP）上千。
+- **根因有二**：① 对 SFT/GRPO 模型用 chat template 会触发训练时的"Let me solve…"解题循环，必须改**裸 completion**；
+  ② 模型若不被强制**先算出数值**就不会基于算术下判断。两者修好后，模型**真的会算**
+  （输出如 `9*6=54. Value=54. Judge: WRONG`），selfcritic@16 从 6–16% 跃升至 **22–40%（3–5×）**，
+  验证器精确率从 ~12% 翻到 **45–66%**，准确率 87–98%。
+- **单解 SFT 是更好的验证器**：SFT-single / A2 的验证器精确率达 **87%**（多解仅 58%）；
+  **base / 纯GRPO 仍是老好人**（精确率 4–6%）——**SFT 是解锁自评能力的钥匙**。
 
----
+## 9.5 最终 11 模型完整表（verify-by-compute 自评；`results/cmp_compute_all.json`）
+| 模型 | greedy | maj@16 | **selfcritic@16（ToT,可部署）** | bv@16（验证器上界） | 验证器 prec/rec/acc |
+|---|---|---|---|---|---|
+| base | 0% | 1% | 4% | 7% | 4 / 100 / 87 % |
+| **SFT-single** | 8% | 12% | **40%** | 47% | **87 / 82 / 98 %** |
+| SFT-multi | 8% | 7% | 31% | 52% | 58 / 51 / 94 % |
+| R1 纯GRPO | 0% | 0% | 3% | 9% | 6 / 100 / 91 % |
+| C | 11% | 11% | 25% | 44% | 58 / 36 / 90 % |
+| A1 | 12% | 10% | 24% | 34% | 45 / 34 / 87 % |
+| A2 单解 | 10% | 13% | 35% | 43% | 87 / 65 / 94 % |
+| A3 shaped | 13% | 11% | 22% | 35% | 50 / 30 / 88 % |
+| A4a lr5e-7 | 12% | 12% | 29% | 46% | 66 / 49 / 91 % |
+| A4b lr2e6 | 10% | 9% | 15% | 27% | 35 / 29 / 89 % |
+| A4c lr5e6 | 11% | 7% | 12% | 18% | 15 / 83 / 61 % |
 
-## 5. 分析（方法优越性与局限性）
+![价值阶梯](results/figs/fig_value_ladder.png)
 
-**方法优越性（SFT→GRPO vs 纯 GRPO，受控对比）**
-1. **分布内求解能力**：SFT→GRPO **27%** vs 纯 GRPO **5%**（**5.4×**）。纯 GRPO 训练 120 步后
-   甚至**低于仅 SFT（20%）**，说明从冷启动直接 GRPO 很难学会真正求解。
-2. **OOD 泛化（Countdown，完全 held-out）**：SFT→GRPO **12.89%** vs 纯 GRPO **2.34%**（**5.5×**）；
-   且相对 SFT-only 的 5.08% 再翻 **2.5×**。这是最有力的证据：**GRPO 叠加在 SFT 之上学到的是可迁移的
-   通用算术推理**（迁移到 3–4 数、任意目标的不同任务），而非对 24 的记忆。
-3. **难测试 pass@4**：SFT→GRPO 5% vs 纯 GRPO 0%（贪心都≈0–1%，但有效采样能力 SFT→GRPO 更强）。
-4. **GRPO 在 SFT 之上确有增益**：分布内 20%→27%、OOD 5.08%→12.89%，证明两阶段是互补的而非冗余。
-5. **不产生幻觉**：所有模型在无解题上的"求解率"均为 0%，SFT/GRPO 没有诱发对无解题的瞎编。
+价值阶梯：**`bv 上界 ≫ selfcritic（可部署）≫ greedy/maj`**，全程满足 `bv ≥ selfcritic`（oracle 是上界，自洽性审核通过）。
+> **关于 in-dist 的诚实说明（回应评审）**：上表"in-dist"是在 **1262 道训练题**上采样测的,SFT/GRPO 都见过这些题,
+> 故它主要反映**训练分布内的拟合/记忆**,**不作为泛化证据**。本报告的泛化证据是**held-out 测试集(idx900-999)**
+> 与 **OOD(Countdown)**;in-dist 仅用于观察"分布内拟合"随 GRPO 的变化(升)与多样性(降)的此消彼长。
 
-**机制解释**：base 在难/新题上几乎不输出合法解，GRPO 以 n=4 采样时一组内全 0 → 优势为 0 → 无梯度
-（零梯度组问题，实测纯 GRPO 训练奖励长期 ~0.1）。SFT 冷启动把"按格式输出 + 真实尝试"的能力先灌入，
-使组内经常出现正确样本（训练奖励 0.25–0.44），GRPO 才能有效放大。
+## 9.6 幻觉检测（无解题）+ 用自评做幻觉防御
+**作业要求用 `nlile/24-game` solvable=False 的 ~100 条查幻觉。但经核查,`nlile/24-game` 当前版本 1362 条全部
+solvable=True、已无 solvable=False 字段**(我们 `load_dataset` 后统计:`{True: 1362}`)。因此我们**合成 100 个无解
+四元组**(`{1..13}⁴` 减去全部可解集,并用精确求解器 `solve24` 验证 100/100 确实无解)作为等价替代,记于
+`examples/data_preprocess/game24_official.py`。
 
-**局限性**
-- **难测试集贪心接近天花板**：最难 100 题（人类解出率 20–58%）对 1.5B 贪心 1-shot 极难，两 arm 都 ≈0–1%，
-  因此该指标不区分；区分度体现在分布内、pass@k 与 OOD。
-- **算力/规模受限**：本机 vLLM 不可用，改用较慢的 HF rollout，故规模较小（160 步、batch 16、resp 256）。
-  更长训练或可用 vLLM 提速后，纯 GRPO 末段出现的微弱上扬或可进一步发展，SFT→GRPO 也可能继续提升。
-- **checkpoint**：因步数上限的 off-by-one，最终保存到 global_step_120（非 160）；曲线显示该处已接近稳定。
-- **奖励较稀疏（1.0/0.1/0.0）**：对"接近但不等于 24"无塑形，主要靠 SFT 提供稠密起点。
+**指标设计(修正早期的无效指标)**:早期报告把"无解题求解率=0%"当成"不瞎编"的证据,但这是**恒等于 0 的无信息量指标**
+(无解题不可能有 `score==1.0` 的算式,对 base 也是 0%)。由于 R1 输出格式**强制给出 `<answer>`、没有"无解"选项**,
+任何模型在无解题上都会**被迫输出一个(必然错误的)算式 → 原始瞎编率 ≈ 100%**。真正有意义的问题是:**能否用模型自己的
+verify-by-compute 自评(§9.4)去识别并拒绝这些瞎编**。于是我们报告三个量(`scripts/eval_halluc.py`):
+- **greedy 瞎编率**:贪心是否输出一个用满 4 数的算式(声称有解)——越低越好;
+- **自评误受率**:k 个采样候选中被自评(错误地)判为 CORRECT 的比例——越低越好(无解题任何"接受"都是幻觉);
+- **自评弃答率**:自评把 k 个候选**全部**判 WRONG 的题目比例 → 模型**正确地拒绝声称有解** → 幻觉被防御,越高越好。
 
-**结论**：在严格受控（同数据/奖励/超参/提示，仅初始权重不同）的对比下，
-**先 SFT 后 GRPO 在分布内求解（5.4×）与 OOD 泛化（5.5×）上显著优于纯 GRPO**，
-且 GRPO 在 SFT 之上带来额外且可迁移的提升；纯 GRPO 从冷启动受零梯度组问题制约，长期停滞。
+**结果**（`scripts/eval_halluc.py`，合成无解集 n=100，k=8）：
 
----
+| 模型 | greedy 瞎编率 | 自评误受率↓ | **自评弃答率↑** |
+|---|---|---|---|
+| base | 86% | 8% | 60% |
+| **SFT-single** | 100% | 0% | **97%** |
+| SFT-multi | 100% | 1% | 94% |
+| A4a | 100% | 1% | 92% |
 
-## 6. 复现实验
+**结论(把幻觉与自评打通)**:SFT 模型在无解题上**原始瞎编率 ≈ 100%**(格式强制给答案,自身无法弃答,这是 R1/RLVR 范式的
+固有局限);**但 verify-by-compute 自评(§9.4)能把瞎编挡掉**——**误受率仅 0–1%、对 92–97% 的无解题正确弃答**
+(自评把所有候选判 WRONG)。即:**单模型既当解题器又当验证器,自评层就是一道幻觉防线**;SFT-single 仍最佳(弃答 97%、误受 0%),
+与它验证器精确率最高(§9.5)一致;base 自评弱(弃答仅 60%、误受 8%),再次印证 **SFT 是自评能力的前提**。
+> 诚实标注:这是**推理期自评防御**的效果,非训练让模型学会"输出无解";若要模型直接判定无解,需在格式中加"impossible"
+> 选项并据此训练(未做,列为局限)。早期"求解率 0% = 不瞎编"的说法**无信息量,已弃用**(见 补充材料 §6.1)。
+
+## 9.7 最终 accuracy 与交付结论
+统一口径 = 准确率（`==24`）。合规 ToT 难测试集（idx 900–999, n=100）。**三档按"用了多少测试时算力/外部信息"从低到高排列,功劳诚实归因**:
+
+| 部署方式 | 测试时成本 | 是否需外部验证器 | 最优模型 | 准确率 |
+|---|---|---|---|---|
+| **贪心 1-shot**(纯训练所得) | 1× | 否 | A3 / A4a | **~12–13%** |
+| **模型自评 ToT**(verify-by-compute) | ~16–24×(采样+自评) | **否**(模型自己判) | **SFT-single** | **40%** |
+| 带廉价精确验证器 best-of-16 | 16× | 是(24点验证器廉价精确) | SFT-multi / A4a | ~46–52% |
+
+- **头条只报一个,避免口径混淆**:**最终交付 = SFT-single + verify-by-compute 自评 = 40%**(无外部验证器、模型自主、对齐 ToT)。
+  这 40% 中:**训练本身贡献 ~8%(greedy)**,**测试时计算(16 个采样 + 模型自评)再贡献 +32pp**——我们明确这是
+  **测试时计算(test-time compute)**的增益,不把它算作训练方法单独的功劳。带外部验证器可再升到 ~50%,但那需要部署侧有验证器。
+  (§1–8 的"1%→50%"对比了不同口径、且建立在泄漏数据上,**已作废,勿引用**。)
+- **关键结论**:① **SFT 是 GRPO 与自评能力的共同前提**(纯 GRPO ≈ base,且不会自评);
+  ② **GRPO 提升单发 greedy 但收窄采样多样性**(best-of-N/自评上界下降)——本任务上 GRPO 的净增益有限;
+  ③ **小模型能不能自评,取决于 critic 的 prompt 设计**——必须裸 completion + 强制计算,否则只是"老好人";
+  ④ **单解 SFT 训出的验证器更可靠**(精确率 87%),且该自评器还能用于**幻觉防御**(§9.6)。
+
+## 9.8 复现（合规）
 ```bash
 cd ddl_work/project/TinyZero
-bash scripts/prepare_data_game24.sh           # 数据
-bash scripts/prepare_data_countdown.sh        # OOD 数据
-bash scripts/generate_sft_data_game24.sh      # SFT 轨迹
-bash scripts/train_sft_game24.sh              # SFT 冷启动
-# Arm A 纯 GRPO
-EXPERIMENT_NAME=game24-grpo-base bash scripts/train_game24_grpo_hf.sh
-# Arm B SFT→GRPO
-BASE_MODEL=$(ls -td checkpoints/TinyZero/game24-sft/global_step_*|head -1) \
-  EXPERIMENT_NAME=game24-grpo-sftinit bash scripts/train_game24_grpo_hf.sh
-# 评测与对比
-python scripts/eval_compare.py --model base:... --model SFT-only:... \
-  --model pure-GRPO:... --model SFT-GRPO:... --out_md results/comparison.md
-python scripts/analyze_grpo.py --log game24-grpo-base.log:pure-GRPO \
-  --log game24-grpo-sftinit.log:SFT->GRPO --out_png results/grpo_curves.png
+python examples/data_preprocess/game24_official.py --local_dir data/game24_official   # 合规数据
+bash scripts/run_full_ablation.sh        # 训 SFT-single + 8 臂 GRPO 消融
+bash scripts/eval_all_compliant.sh       # greedy + bv + maj + halluc + countdown（11 模型）
+python scripts/eval_selfcritic_compute.py --model SFT-single:... --test data/game24_official/test.parquet --k 16
+python scripts/plot_results.py           # 5 张效果图 -> results/figs/
 ```
-
----
-
-# 7. 进一步提升与消融（"刷上去" + 调参）
-
-第二阶段在第一阶段(确认 SFT→GRPO 优于纯 GRPO)之上系统地把成绩往上刷。结论先行：
-**最难测试集的可部署求解率从 1% 提升到 ~50%**，并发现了一个关键的**探索/利用权衡**。
-所有数字均经独立对抗式验证(见 7.5),验证器已修复 `**`/`//` 漏洞(原结果 0 次触发,数值不变)。
-
-## 7.1 三个抓手
-1. **更强 SFT v2**(同 1262 训练题,**不扩充**避免泄漏):每题 2 个解(含分数/除法解)、3 次失败尝试(含 1 个分数尝试)、加一行自检 `Check: … = 24 ✓`;lr 1e-5、4 epochs。`examples/data_preprocess/generate_sft_game24.py`。
-2. **验证器引导 best-of-N**(最便宜的大头):有精确验证器(算式逐字判定=24),推理时采样 N 个、输出验证为正确的那个。`scripts/eval_compare.py` 的 `best_verified@k`。
-3. **奖励工程 + GRPO 超参消融**:`sparse` / `shaped`(`0.1+0.5·接近度`,仅数字用对时给,防 hack)经 `GAME24_REWARD` 切换;扫 n、lr、KL、熵、温度。
-   > 注:**难度加权奖励被砍掉**——按题乘常数在 GRPO 组内优势归一化下会被约掉,是无效操作。
-
-## 7.2 头条结果:难测试集求解率 1% → 50%
-`SFT v2` 在最难 100 题上,验证器引导 best-of-N(单次抽样,n=100,~±10pp):
-
-| 采样温度 | greedy | bv@8 | bv@16 | bv@32 | **bv@64** |
-|---|---|---|---|---|---|
-| T=1.0 | 3% | 12% | 16% | 26% | 37% |
-| T=1.5 | 0% | 8% | 17% | 38% | **50%** |
-
-- **高温=更多样=验证器能挑到的正确解更多**:T=1.5 在大 N 下最佳。
-- "可部署"的前提要写清:**64× 推理成本 + 部署时有精确验证器**选答案;贪心 1-shot 仍只有 0-3%(接近 1.5B 单次天花板)。
-
-## 7.3 核心发现:GRPO 的"探索/利用"权衡(seeded 消融)
-| 模型 | 分布内 greedy | bv@4 | bv@8 | bv@16 |
-|---|---|---|---|---|
-| **SFT v2(无 GRPO)** | 27% | 7% | 13% | **21%** |
-| sparse GRPO @40 | 27% | 4% | 8% | 12% |
-| sparse GRPO @80 | **42%** | 2% | 2% | 5% |
-| div(高KL/shaped)@20 | 31% | **11%** | 12% | 18% |
-| div(低KL/shaped)@20 | 31% | 7% | **14%** | 18% |
-| div(高熵/T1.3)@20 | 26% | 3% | 7% | 13% |
-
-- **GRPO 把策略尖锐化**:sparse GRPO 训到 80 步,分布内 greedy 27%→**42%**,但**摧毁采样多样性** → 难测试 best-of-N 从 21%(bv@16)塌到 **5%**。两个目标赢家相反。
-- 统计:base→80步 bv@16 下降显著(两比例 z=3.21, p<0.01),被 bv@4/bv@8 交叉印证;中间步在 n=100 单抽下不显著,故表述为"端点显著",不宣称"每步单调"。
-- **缓解 = 多样性保护型 GRPO**:**高 KL 锚定**(把策略拉住在多样的 SFT 附近)+ shaped 奖励 + **早停(~20 步)**,能做到分布内 27%→31% **同时**保住 best-of-N(bv@16 21%→18%,远好于 sparse 的 5%)。过度探索(高熵/高温)反而变差。
-
-## 7.4 最终管线(含 GRPO)与推荐
-**SFT v2 → 多样性保护型 GRPO(shaped + 高 KL + 早停) → best-of-N 推理**:
-- **要分布内/单答案最强** → sparse GRPO(42%);
-- **要难题可部署求解率最高** → SFT v2 + best-of-N(bv@64 T1.5 ≈ 50%),GRPO 宜轻(早停/高KL)以免塌多样性;
-- **平衡** → 多样性保护型 GRPO @~20 步:分布内 31% + bv@16 18%。
-
-## 7.5 可信度(独立对抗式验证)
-对头条结论做了对抗审核(`verify-game24-findings` workflow):
-- C1(50% 天花板)与 C2(GRPO 坍缩)均判为 **SOUND**;验证器无假阳性(已补 `**`/`//`)、train/test 数字多重集 0 重叠、无 prompt 示例泄漏、无 max_new_tokens 截断伪影。
-- caveat:50% 写作 **~50%±10pp**(单次 best-of-64 抽样);"可部署"需 64×+验证器;坍缩端点显著、逐步单调不下定论。eval 已加随机种子。
-
-## 7.6 提升账本
-| 指标 | 起点 | 现在最好 | 手段 |
-|---|---|---|---|
-| 难测试 可部署求解率 | 1%(贪心) | **~50%**(bv@64,±10pp) | SFT v2 + 高温 + best-of-N(GRPO 宜轻) |
-| 分布内 greedy | 27% | **42%** | SFT v2 + sparse GRPO |
-| 平衡(分布内+best-of-N) | — | 31% / bv@16 18% | SFT v2 + 多样性保护 GRPO@20 |
-
-**结论**:GRPO 是 RLVR 的"利用"算子(把分布内做尖),而难题突破靠"探索"(强 SFT 的多样性 + 验证器 best-of-N)。最佳工程方案是两者结合,且 GRPO 需用高 KL/早停来避免牺牲 best-of-N。
-
----
-
-# 8. 训练监控与曲线（对应评分点"监控 reward/正确率曲线，必要时调超参"）
-
-## 8.1 监控方式
-本机到 wandb.ai 的在线同步不稳定,故训练采用 **console logger**(`trainer.logger=['console']`)逐步打印指标,
-并设 `WANDB_MODE=offline`(离线 run 存于 `wandb/`,可日后 `wandb sync` 上传)。
-**所有训练曲线来自解析 console 日志**(`game24-grpo-*.log`),用 `scripts/analyze_grpo.py` 抽成
-CSV + matplotlib 图,无需依赖 wandb 在线面板。
-
-## 8.2 每步监控的指标(verl 逐步输出)
-| 指标 | 含义 | 我们看它判断什么 |
-|---|---|---|
-| `critic/score/mean` | 每步平均奖励(核心) | 是否在学(应从 ~0.06 升;SFT 起点已 ~0.3) |
-| `critic/score/max` | 批内最高奖励 | 是否出现 1.0(组内有正确样本→有梯度) |
-| `val/test_score/game24` | 难测试集验证分(每 `test_freq=20` 步) | 泛化趋势(注:sparse/shaped 不可跨模式比) |
-| `actor/kl_loss` | 对参考策略 KL | 是否漂移过大(用它做高 KL 锚定实验) |
-| **`actor/entropy_loss`** | 策略熵 | **多样性坍缩的直接观测量**(见 8.3) |
-| `response_length/mean` | 平均输出长度 | 是否截断/退化 |
-| `actor/grad_norm` | 梯度范数 | 训练稳定性 |
-
-## 8.3 三张报告图(`results/`)
-- **`curves_phase1.png`**：纯 GRPO vs SFT→GRPO 的 `critic/score/mean` 与 `val/test_score` ——
-  纯 GRPO 长期卡在 ~0.10–0.13,SFT→GRPO 从第 1 步就 0.25–0.44。直观展示"零梯度组"被 SFT 解决。
-- **`curves_wave1.png`**：奖励设计消融(sparse-n4 / sparse-n8 / shaped / staged)的奖励曲线 ——
-  shaped 因部分分天然更高(~0.5),sparse ~0.27;说明 shaped 给了更稠密的逐样本信号。
-- **`curves_entropy.png`**：`actor/entropy_loss` 曲线(sparse vs divC 高KL vs divD 高熵)——
-  **这是"GRPO 坍缩 best-of-N"的机制图**:sparse 的熵快速跌向 0(策略尖锐化),高 KL/高熵配置熵衰减更慢,
-  对应它们 best-of-N 保留更好。把 §7.3 的多样性结论与这条熵曲线对应起来即可。
-
-## 8.4 "必要时调超参"的体现
-监控驱动了整个 sweep:观察到纯 GRPO 奖励停滞 → 上 SFT 暖启动;观察到 best-of-N 随训练坍缩 +
-熵快速下降 → 设计高 KL/高熵/早停的多样性保护臂(§7.3);观察到 shaped 奖励曲线更稠密 → 纳入消融。
-超参网格与逐项结果见 `EXPERIMENTS.md` §5。

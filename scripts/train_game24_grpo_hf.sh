@@ -80,7 +80,7 @@ fi
     data.max_response_length="$MAX_RESPONSE_LENGTH" \
     actor_rollout_ref.model.path="$BASE_MODEL" \
     actor_rollout_ref.model.use_remove_padding=False \
-    actor_rollout_ref.model.enable_gradient_checkpointing=False \
+    actor_rollout_ref.model.enable_gradient_checkpointing=${GRAD_CKPT:-False} \
     actor_rollout_ref.actor.optim.lr="$LR" \
     actor_rollout_ref.actor.ppo_mini_batch_size="$PPO_MINI_BATCH_SIZE" \
     actor_rollout_ref.actor.ppo_micro_batch_size="$PPO_MICRO_BATCH_SIZE" \
@@ -88,9 +88,9 @@ fi
     actor_rollout_ref.actor.kl_loss_coef="$KL_COEF" \
     actor_rollout_ref.actor.kl_loss_type=low_var_kl \
     actor_rollout_ref.actor.entropy_coeff="$ENTROPY_COEFF" \
-    actor_rollout_ref.actor.fsdp_config.param_offload=False \
-    actor_rollout_ref.actor.fsdp_config.grad_offload=False \
-    actor_rollout_ref.actor.fsdp_config.optimizer_offload=False \
+    actor_rollout_ref.actor.fsdp_config.param_offload=${PARAM_OFFLOAD:-False} \
+    actor_rollout_ref.actor.fsdp_config.grad_offload=${GRAD_OFFLOAD:-False} \
+    actor_rollout_ref.actor.fsdp_config.optimizer_offload=${OPT_OFFLOAD:-False} \
     actor_rollout_ref.rollout.name=hf \
     actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
     +actor_rollout_ref.rollout.micro_batch_size=1 \
@@ -99,7 +99,7 @@ fi
     actor_rollout_ref.rollout.top_p="$TOP_P" \
     actor_rollout_ref.rollout.n="$ROLLOUT_N" \
     actor_rollout_ref.ref.log_prob_micro_batch_size="$REF_LOG_PROB_MICRO_BATCH_SIZE" \
-    actor_rollout_ref.ref.fsdp_config.param_offload=False \
+    actor_rollout_ref.ref.fsdp_config.param_offload=${REF_PARAM_OFFLOAD:-False} \
     algorithm.kl_ctrl.kl_coef="$KL_COEF" \
     trainer.critic_warmup=0 \
     trainer.logger="$TRAINER_LOGGER" \

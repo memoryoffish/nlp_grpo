@@ -1,0 +1,18 @@
+{
+  "A1": {
+    "n": 100,
+    "greedy": 0.12,
+    "selfcritic_cmp@16": 0.24,
+    "best_verified@16": 0.34,
+    "maj@16": 0.1,
+    "verifier_precision": 0.4468,
+    "verifier_recall": 0.3351,
+    "verifier_accuracy": 0.873,
+    "confusion": {
+      "TP": 63,
+      "FP": 78,
+      "FN": 125,
+      "TN": 1332
+    }
+  }
+}

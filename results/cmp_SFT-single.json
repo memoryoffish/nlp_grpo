@@ -1,0 +1,18 @@
+{
+  "SFT-single": {
+    "n": 100,
+    "greedy": 0.08,
+    "selfcritic_cmp@16": 0.4,
+    "best_verified@16": 0.47,
+    "maj@16": 0.12,
+    "verifier_precision": 0.8687,
+    "verifier_recall": 0.819,
+    "verifier_accuracy": 0.9799,
+    "confusion": {
+      "TP": 86,
+      "FP": 13,
+      "FN": 19,
+      "TN": 1478
+    }
+  }
+}

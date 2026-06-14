@@ -1,0 +1,8 @@
+{
+  "SFT-single": {
+    "n": 100,
+    "fab_greedy_rate": 1.0,
+    "critic_accept_rate": 0.0038,
+    "abstain_rate": 0.97
+  }
+}

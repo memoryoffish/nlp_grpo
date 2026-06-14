@@ -1,0 +1,30 @@
+{
+  "SFT-multi": {
+    "n": 100,
+    "greedy": 0.08,
+    "selfcritic@16": 0.06,
+    "best_verified@16": 0.51,
+    "maj@16": 0.08
+  },
+  "C-multi-n4-lr1e6": {
+    "n": 100,
+    "greedy": 0.11,
+    "selfcritic@16": 0.08,
+    "best_verified@16": 0.42,
+    "maj@16": 0.08
+  },
+  "A1-n8": {
+    "n": 100,
+    "greedy": 0.12,
+    "selfcritic@16": 0.12,
+    "best_verified@16": 0.34,
+    "maj@16": 0.11
+  },
+  "R1-puregrpo": {
+    "n": 100,
+    "greedy": 0.0,
+    "selfcritic@16": 0.02,
+    "best_verified@16": 0.08,
+    "maj@16": 0.0
+  }
+}

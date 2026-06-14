@@ -1,0 +1,18 @@
+{
+  "A4a": {
+    "n": 100,
+    "greedy": 0.12,
+    "selfcritic_cot@16": 0.15,
+    "best_verified@16": 0.45,
+    "maj@16": 0.12,
+    "verifier_precision": 0.1155,
+    "verifier_recall": 0.9943,
+    "verifier_accuracy": 0.1235,
+    "confusion": {
+      "TP": 175,
+      "FP": 1340,
+      "FN": 1,
+      "TN": 14
+    }
+  }
+}

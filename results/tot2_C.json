@@ -1,0 +1,18 @@
+{
+  "C": {
+    "n": 100,
+    "greedy": 0.11,
+    "selfcritic_tot@16": 0.11,
+    "best_verified@16": 0.42,
+    "maj@16": 0.1,
+    "verifier_precision": 0.1108,
+    "verifier_recall": 0.9771,
+    "verifier_accuracy": 0.1395,
+    "confusion": {
+      "TP": 171,
+      "FP": 1372,
+      "FN": 4,
+      "TN": 52
+    }
+  }
+}

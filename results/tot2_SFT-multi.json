@@ -1,0 +1,18 @@
+{
+  "SFT-multi": {
+    "n": 100,
+    "greedy": 0.08,
+    "selfcritic_tot@16": 0.07,
+    "best_verified@16": 0.51,
+    "maj@16": 0.07,
+    "verifier_precision": 0.0658,
+    "verifier_recall": 0.9434,
+    "verifier_accuracy": 0.1087,
+    "confusion": {
+      "TP": 100,
+      "FP": 1420,
+      "FN": 6,
+      "TN": 74
+    }
+  }
+}

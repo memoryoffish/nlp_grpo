@@ -1,0 +1,82 @@
+{
+  "A1": {
+    "n": 100,
+    "greedy": 0.12,
+    "selfcritic_cot@16": 0.11,
+    "best_verified@16": 0.36,
+    "maj@16": 0.11,
+    "verifier_precision": 0.1205,
+    "verifier_recall": 1.0,
+    "verifier_accuracy": 0.1272,
+    "confusion": {
+      "TP": 186,
+      "FP": 1358,
+      "FN": 0,
+      "TN": 12
+    }
+  },
+  "A3": {
+    "n": 100,
+    "greedy": 0.13,
+    "selfcritic_cot@16": 0.16,
+    "best_verified@16": 0.36,
+    "maj@16": 0.14,
+    "verifier_precision": 0.1257,
+    "verifier_recall": 1.0,
+    "verifier_accuracy": 0.1285,
+    "confusion": {
+      "TP": 192,
+      "FP": 1336,
+      "FN": 0,
+      "TN": 5
+    }
+  },
+  "A4a": {
+    "n": 100,
+    "greedy": 0.12,
+    "selfcritic_cot@16": 0.15,
+    "best_verified@16": 0.45,
+    "maj@16": 0.12,
+    "verifier_precision": 0.1155,
+    "verifier_recall": 0.9943,
+    "verifier_accuracy": 0.1235,
+    "confusion": {
+      "TP": 175,
+      "FP": 1340,
+      "FN": 1,
+      "TN": 14
+    }
+  },
+  "C": {
+    "n": 100,
+    "greedy": 0.11,
+    "selfcritic_cot@16": 0.13,
+    "best_verified@16": 0.45,
+    "maj@16": 0.1,
+    "verifier_precision": 0.1157,
+    "verifier_recall": 1.0,
+    "verifier_accuracy": 0.1187,
+    "confusion": {
+      "TP": 173,
+      "FP": 1322,
+      "FN": 0,
+      "TN": 5
+    }
+  },
+  "SFT-multi": {
+    "n": 100,
+    "greedy": 0.08,
+    "selfcritic_cot@16": 0.06,
+    "best_verified@16": 0.5,
+    "maj@16": 0.05,
+    "verifier_precision": 0.0595,
+    "verifier_recall": 0.9886,
+    "verifier_accuracy": 0.079,
+    "confusion": {
+      "TP": 87,
+      "FP": 1375,
+      "FN": 1,
+      "TN": 31
+    }
+  }
+}

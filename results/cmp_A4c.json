@@ -1,0 +1,18 @@
+{
+  "A4c": {
+    "n": 100,
+    "greedy": 0.11,
+    "selfcritic_cmp@16": 0.12,
+    "best_verified@16": 0.18,
+    "maj@16": 0.07,
+    "verifier_precision": 0.1536,
+    "verifier_recall": 0.8308,
+    "verifier_accuracy": 0.6144,
+    "confusion": {
+      "TP": 108,
+      "FP": 595,
+      "FN": 22,
+      "TN": 875
+    }
+  }
+}

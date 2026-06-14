@@ -1,0 +1,8 @@
+{
+  "base": {
+    "n": 100,
+    "fab_greedy_rate": 0.86,
+    "critic_accept_rate": 0.0842,
+    "abstain_rate": 0.6
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "A3": {
+    "n": 100,
+    "greedy": 0.13,
+    "selfcritic_cmp@16": 0.22,
+    "best_verified@16": 0.35,
+    "maj@16": 0.11,
+    "verifier_precision": 0.4957,
+    "verifier_recall": 0.2959,
+    "verifier_accuracy": 0.8769,
+    "confusion": {
+      "TP": 58,
+      "FP": 59,
+      "FN": 138,
+      "TN": 1345
+    }
+  }
+}

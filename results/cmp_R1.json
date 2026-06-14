@@ -1,0 +1,18 @@
+{
+  "R1": {
+    "n": 100,
+    "greedy": 0.0,
+    "selfcritic_cmp@16": 0.03,
+    "best_verified@16": 0.09,
+    "maj@16": 0.0,
+    "verifier_precision": 0.0641,
+    "verifier_recall": 1.0,
+    "verifier_accuracy": 0.9079,
+    "confusion": {
+      "TP": 10,
+      "FP": 146,
+      "FN": 0,
+      "TN": 1429
+    }
+  }
+}

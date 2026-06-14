@@ -1,0 +1,18 @@
+{
+  "A4b": {
+    "n": 100,
+    "greedy": 0.1,
+    "selfcritic_cmp@16": 0.15,
+    "best_verified@16": 0.27,
+    "maj@16": 0.09,
+    "verifier_precision": 0.3509,
+    "verifier_recall": 0.292,
+    "verifier_accuracy": 0.8931,
+    "confusion": {
+      "TP": 40,
+      "FP": 74,
+      "FN": 97,
+      "TN": 1389
+    }
+  }
+}
