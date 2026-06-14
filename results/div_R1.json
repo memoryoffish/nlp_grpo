@@ -1,0 +1,282 @@
+{
+  "R1": {
+    "n": 100,
+    "k": 16,
+    "uniq_mean": 15.54,
+    "uniq_correct_mean": 0.06,
+    "collapse_frac(<=2 uniq)": 0.0,
+    "bv@16": 0.06,
+    "examples": [
+      {
+        "numbers": [
+          4,
+          5,
+          6,
+          10
+        ],
+        "distinct": [
+          {
+            "expr": "(5 * 6) * (10/4)",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(4 * 6) - 10 + 5",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "19",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(6 * 10) + (4 + 5) = 24",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(4*6) + 10 - 5",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(10 - 6) * 4 = 24",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(4 + 6*10)",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(4*6)*5 = 30*5 = 150/3 = 24",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "4*6=24",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "6*4+5",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(10 - 4) * 6",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(6 * 10) + (5 - 4)",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "4*6+10-5=24",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(10/5)*6 = 24",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(10 - 5) * 4 = 24",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(4 * 6) + 10 - 5 = 24",
+            "n": 1,
+            "correct": false
+          }
+        ]
+      },
+      {
+        "numbers": [
+          1,
+          2,
+          4,
+          7
+        ],
+        "distinct": [
+          {
+            "expr": "(7-1)*2*4",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(4 + 7 - 1) * 2",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(4*(7-(1+2)/4))",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(4 + 7) * 2 = 24",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(1+2)*6=24",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(1*4)+(2*4)+7=24",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(1 + 2) * 4",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "7*(4+3)",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(7 - 1) * (2 * 4)",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(2 + 4) * 6 = 24",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "24",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(1 + 2) * 4 * 7 = 84",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "7*(4+1)-2=35-2",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(7 - 3) * 4",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(4 * 6) + 3",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(1+4)*7",
+            "n": 1,
+            "correct": false
+          }
+        ]
+      },
+      {
+        "numbers": [
+          2,
+          5,
+          8,
+          11
+        ],
+        "distinct": [
+          {
+            "expr": "(2+2)*8",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(8 - 2) * 6",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(11 - 5) * 2",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(8 - 5) * (11 + 2)",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(5 + 11) - (16 - 5*3) + 11",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(2*5) + 11",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "8 * (5 - 2/11)",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "Explanation: First we subtract 5 from 8 to get 3, then multiply it by 2 which gives us 6. Finally, add 11 to our previous result to arrive at 24.",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(5*2)+8",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(11 - 2) * 5",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(-5) + 2 + 5 + 11",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(11 - 2) * 5 = 24",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "= 39",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "2*(8+5-11)= 24",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(11 - 5) * 2 + 8 = 24",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(11 - 8) * 2 + 5 = 24",
+            "n": 1,
+            "correct": false
+          }
+        ]
+      }
+    ]
+  }
+}

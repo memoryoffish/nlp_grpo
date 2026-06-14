@@ -1,0 +1,167 @@
+{
+  "A3": {
+    "n": 100,
+    "k": 16,
+    "uniq_mean": 6.27,
+    "uniq_correct_mean": 0.4,
+    "collapse_frac(<=2 uniq)": 0.09,
+    "bv@16": 0.33,
+    "examples": [
+      {
+        "numbers": [
+          4,
+          5,
+          6,
+          10
+        ],
+        "distinct": [
+          {
+            "expr": "10 + 5 / 4 * 6",
+            "n": 7,
+            "correct": false
+          },
+          {
+            "expr": "10 + 4 + 5 + 6",
+            "n": 4,
+            "correct": false
+          },
+          {
+            "expr": "5 * 6 - 10 + 4",
+            "n": 2,
+            "correct": true
+          },
+          {
+            "expr": "(10 - 5) * 6 - 4",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "6 * (10 - 5) - 4",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(4 + 6 - 10) * 5",
+            "n": 1,
+            "correct": false
+          }
+        ]
+      },
+      {
+        "numbers": [
+          1,
+          2,
+          4,
+          7
+        ],
+        "distinct": [
+          {
+            "expr": "4 * 7 + 1 - 2",
+            "n": 5,
+            "correct": false
+          },
+          {
+            "expr": "4 * (7 - 1 - 2)",
+            "n": 2,
+            "correct": false
+          },
+          {
+            "expr": "2 * 7 + 1 + 4",
+            "n": 2,
+            "correct": false
+          },
+          {
+            "expr": "(1 + 7) * 4 - 2",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(7 - 1) * 2 + 4",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "4 * 7 - 1 + 2",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(1 + 7) * 4 + 2",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(4 - 1) * 2 + 7",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "4 * 7 - 1 - 2",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "(7 - 1 * 2) * 4",
+            "n": 1,
+            "correct": false
+          }
+        ]
+      },
+      {
+        "numbers": [
+          2,
+          5,
+          8,
+          11
+        ],
+        "distinct": [
+          {
+            "expr": "5 - 2 + 8 + 11",
+            "n": 4,
+            "correct": false
+          },
+          {
+            "expr": "11 + 5 - 2 + 8",
+            "n": 3,
+            "correct": false
+          },
+          {
+            "expr": "8 / 5 * 11 - 2",
+            "n": 3,
+            "correct": false
+          },
+          {
+            "expr": "2 + 5 + 8 + 11",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "2 * 11 + 5 - 8",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "8 + 5 - 2 + 11",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "8 / 5 * (2 + 11)",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "2 * 11 + 8 - 5",
+            "n": 1,
+            "correct": false
+          },
+          {
+            "expr": "2 * 11 - 5 + 8",
+            "n": 1,
+            "correct": false
+          }
+        ]
+      }
+    ]
+  }
+}
