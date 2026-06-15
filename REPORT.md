@@ -89,6 +89,53 @@ selfcritic@k (ToT, 本文 verify-by-compute):                  # 模型自己当
 > 按难度排序后选作测试的相对偏难子集。下文各模型 greedy 仅 8–13%，反映的是 **1.5B 模型 1-shot 能力弱**，并非题目易；
 > 二者口径不同，不矛盾。（§1–8 的"20–58%"是另一个更难切片 Rank 1263–1362，已作废。）
 
+## 9.1b 端到端链路 + SFT 冷启动数据（求解器 + 模板合成）
+
+**完整管线（从原始数据到推理）：**
+```
+原始数据(nlile/24-game ≡ test-time-compute/game-of-24, 同一套 1362 道可解题)
+   │  合规切分 (game24_official.py, 断言 train∩test=∅)
+   ├─► 训练池 1262 道  ──┐
+   │                     ├─►【SFT 轨迹合成】solve24() 暴力精确求解器 + 模板生成器
+   │                     │      每题: 3个失败尝试(含1个分数) → 正确解 → 自检行, 套 <think>/<answer>
+   │                     │      multi(每题≤2解, 2382条) / single(每题1最短解, 1199条)
+   │                     ▼
+   │              【阶段1 SFT 冷启动】fsdp_sft_trainer, lr1e-5, 4ep  → SFT-multi / SFT-single
+   │                     │
+   │                     ▼
+   │              【阶段2 GRPO】8 臂单因子消融(§9.2), HF rollout, RLVR 奖励(§9.0)
+   │                     ▼
+   │              【推理期】greedy / maj@k / best_verified@k / selfcritic@k(verify-by-compute, §9.4)
+   ├─► 测试 100 道 (idx900-999) ────────────► 上述全部指标在此评测
+   └─► 幻觉集 100 (合成无解) / Countdown 256 (OOD) ──► §9.6 / §9.3
+```
+
+**SFT 数据 = 100% 程序化合成，非人工标注、非大模型蒸馏**（`examples/data_preprocess/generate_sft_game24.py`）：
+1. **题目**：就是训练池的 **1262 道**（核对 **SFT ∩ 测试 = 0**，无泄漏）。
+2. **每条轨迹的造法**：① `solve24()` 用分数枚举找出该题**全部**正确算式（精确，无浮点误判）；
+   ② 模板把它编成 R1 轨迹——先 **3 个失败尝试**（故意算出 ≠24，含 ≥1 个分数/除法方向）、再"换思路"给**正确解 + ✓**、
+   最后一行 **自检** `Check: … = 24. Uses [...] once each.`，整体包进 `Let me solve this step by step.\n<think>…</think>\n<answer>解</answer>`。
+3. **multi vs single**（`--solutions_per_puzzle`）：multi 每题取最短解 + 一个含除法的解（2382 条）；single 每题只取最短解（1199 条）。这是 §9.3「多解」消融的唯一区别。
+
+真实样本（puzzle `[1,4,9,11]`）：
+```
+<think>
+I need to make 24 from [1, 4, 9, 11], using each number exactly once.
+Let me try some combinations first:
+- Try 11 + 9 + 4 + 1 = 25 ≠ 24. Does not work.
+- Try 11 * 9 - 4 - 1 = 94 ≠ 24. Does not work.
+- Try 11 / (9 / 4) = 4.89 ≠ 24. Does not work.
+Let me think differently:
+1 * 4 + 9 + 11 = 24 ✓  Found it!
+Check: 1 * 4 + 9 + 11 = 24. Uses [1, 4, 9, 11] once each. Correct.
+</think>
+<answer>1 * 4 + 9 + 11</answer>
+```
+**作用**：这条轨迹同时教会模型 ① 输出 R1 格式、② "试错→换思路→成功"的搜索行为、③ 自检——正是 GRPO 冷启动所需
+（无 SFT 时纯 GRPO 采不到正确解、零梯度组，§9.5b 已证）。
+**局限（诚实）**：这些"推理"是**模板化**的（失败尝试取自固定几种组合，不是模型真推理出来的），完全确定式生成（seed=42）——
+好处是零标注噪声、可复现，代价是 SFT 轨迹的"思维"多样性有限，真正的推理多样性靠后续采样 + best-of-N 提供。
+
 ## 9.2 五轴消融矩阵（单因子对照，从对照臂 C 每次只变一项；4×GPU，HF rollout，1 epoch，step_40）
 | 臂 | SFT 起点 | n | reward | lr | 消融轴 |
 |---|---|---|---|---|---|
